@@ -1,0 +1,14 @@
+data/sample_raw/
+__pycache__/
+.env
+settings.bat
+settings.sh
+.venv/
+work/
+.DS_Store
+data/launchd.log
+data/launchd_error.log
+data/last_run.log
+data/sectors_run.log
+data/collect.log
+.github/

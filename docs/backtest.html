@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>수급 전략 검증</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* 레이아웃: 상단 고정 날짜바 + 4개 섹션(시장·섹터·수급·추적) 세로 흐름, 표는 각자 가로 스크롤 */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --panel2:#f7f9fc; --line:#dfe4ec; --fg:#18202c; --muted:#5f6b7c; --faint:#8b96a6;
+  --accent:#1d4f86; --accent-soft:#e3edf8;
+  --up:#d42f2f; --down:#1e66c9; --up-soft:#fde9e7; --down-soft:#e5effc;
+  --hi3:#f2b25c; --hi2:#fbe3c2; --warn:#b7720d; --warn-soft:#fdf0d8; --ok:#2c7a4b; --ok-soft:#e2f3e8; --risk:#a8323a; --risk-soft:#fbe4e5;
+  --violet:#6a49c8; --violet-soft:#efe9fc;
+  --sum-bg:#fff7e6; --lo3:#9cc8f2; --lo2:#d8eafb;
+  --font:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141b; --panel:#161d27; --panel2:#1b2430; --line:#2a3544; --fg:#e6ebf2; --muted:#9aa6b8; --faint:#6f7c8f;
+  --accent:#7fb0ea; --accent-soft:#1d2d42;
+  --up:#ff6b64; --down:#5ea2ff; --up-soft:#3a1f22; --down-soft:#1b2a40;
+  --hi3:#8a5a1c; --hi2:#4a3620; --warn:#f0b04a; --warn-soft:#3a2e17; --ok:#5fcf8c; --ok-soft:#173226; --risk:#ff7c84; --risk-soft:#3d1f24;
+  --violet:#b39cff; --violet-soft:#2a2342; --sum-bg:#2a2416; --lo3:#1f4f80; --lo2:#1a3150; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f141b; --panel:#161d27; --panel2:#1b2430; --line:#2a3544; --fg:#e6ebf2; --muted:#9aa6b8; --faint:#6f7c8f;
+  --accent:#7fb0ea; --accent-soft:#1d2d42;
+  --up:#ff6b64; --down:#5ea2ff; --up-soft:#3a1f22; --down-soft:#1b2a40;
+  --hi3:#8a5a1c; --hi2:#4a3620; --warn:#f0b04a; --warn-soft:#3a2e17; --ok:#5fcf8c; --ok-soft:#173226; --risk:#ff7c84; --risk-soft:#3d1f24;
+  --violet:#b39cff; --violet-soft:#2a2342; --sum-bg:#2a2416; --lo3:#1f4f80; --lo2:#1a3150; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1440px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1440px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.brand{font-weight:700;font-size:17px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px}
+.brand small{font-weight:500;font-size:12px;color:var(--muted)}
+.datebox{display:flex;align-items:center;gap:6px}
+.datebox select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);min-width:150px}
+.ib{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;cursor:pointer}
+.ib:hover{border-color:var(--accent)}
+.ib:disabled{opacity:.4;cursor:default}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;margin-left:auto}
+nav.tabs a{padding:6px 12px;border-radius:999px;color:var(--muted);text-decoration:none;font-weight:600;white-space:nowrap}
+nav.tabs a:hover,nav.tabs a.on{background:var(--accent-soft);color:var(--accent)}
+.banner{background:var(--warn-soft);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);padding:8px 12px;border-radius:8px;margin-top:12px;font-size:13px}
+
+section.sec{padding-top:28px;scroll-margin-top:70px}
+.sh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sh h2{margin:0;font-size:21px;letter-spacing:-.02em;text-wrap:balance}
+.sh .meta{color:var(--muted);font-size:12.5px}
+h3{margin:0;font-size:15px;letter-spacing:-.01em}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-width:0}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+@media (max-width:420px){.g3,.g2{grid-template-columns:1fr}}
+.lbl{font-size:12px;color:var(--muted);letter-spacing:.02em}
+.big{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.sub{font-size:12px;color:var(--muted)}
+.up{color:var(--up)} .dn{color:var(--down)} .mut{color:var(--muted)}
+.code{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.c-ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.c-warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.c-risk{background:var(--risk-soft);color:var(--risk);border-color:transparent}
+.c-acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.c-vio{background:var(--violet-soft);color:var(--violet);border-color:transparent}
+.c-up{background:var(--up-soft);color:var(--up);border-color:transparent}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.mini div{background:var(--panel2);border-radius:6px;padding:5px 8px;font-size:12px}
+.mini b{display:block;font-weight:600}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:12px;text-align:right;padding:8px 10px;white-space:nowrap;border-bottom:1px solid var(--line)}
+td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+th{cursor:pointer;user-select:none} th:hover{color:var(--accent)} th::after{content:attr(data-arrow);color:var(--accent)}
+th.l,td.l{text-align:left} th.c,td.c{text-align:center}
+td .nm{font-weight:600}
+tr.hi3 td{background:color-mix(in srgb,var(--hi3) 55%,var(--panel))}
+tr.hi2 td{background:var(--hi2)}
+tr.lo3 td{background:var(--lo3)}
+tr.lo2 td{background:var(--lo2)}
+.sectop{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.sectop ol{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+.sectop li{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:baseline;font-size:13px}
+.sectop li .bar{grid-column:2/4;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.sectop li .bar i{display:block;height:100%}
+td.sum{background:var(--sum-bg)}
+.star{color:#d79a1c;margin-left:3px}
+.scroll-y{max-height:560px;overflow:auto}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--accent-soft)}
+tr.sel td{outline:0;background:var(--accent-soft)}
+.secsel{font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-width:150px}
+.stack{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.stack.l{align-items:flex-start}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--panel);padding:5px 11px;cursor:pointer;color:var(--muted);font-weight:600;font-size:12.5px}
+.seg button.on{background:var(--accent);color:var(--panel)}
+.cv{position:relative;height:220px}
+.cv.tall{height:300px}
+.cv.short{height:170px}
+details.crit{margin-top:10px;font-size:12.5px;color:var(--muted)}
+details.crit summary{cursor:pointer;font-weight:600}
+.risk{font-weight:700;padding:3px 10px;border-radius:999px}
+.slot{cursor:pointer;border:1px solid var(--line);transition:border-color .15s}
+.slot.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.slot .lab{font-size:11px;font-weight:700;color:var(--accent)}
+.legend{display:flex;gap:12px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+.card-s h4{margin:2px 0 4px;font-size:17px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.cmpbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.x{border:0;background:none;cursor:pointer;color:inherit;padding:0 0 0 2px}
+textarea.out{width:100%;height:120px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:8px}
+.muted-note{font-size:12px;color:var(--muted);margin-top:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+.grade{font-weight:700}
+.g-유력{background:var(--ok-soft);color:var(--ok)}
+.g-가능성{background:var(--accent-soft);color:var(--accent)}
+.g-근거{background:var(--warn-soft);color:var(--warn)}
+.g-효과{background:var(--panel2);color:var(--faint)}
+.explain{max-width:78ch;color:var(--muted);font-size:13.5px}
+.explain li{margin:3px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+</style>
+<header class="bar"><div class="bar-in">
+  <div class="brand">수급 전략 검증 <small id="meta"></small></div>
+  <nav class="tabs"><a href="index.html">← 대시보드</a></nav>
+</div></header>
+<main class="wrap">
+  <div id="banner" class="banner" hidden></div>
+  <section class="sec">
+    <div class="sh"><h2>어떤 수급 신호에 사는 게 좋았나</h2><span class="meta" id="cond"></span></div>
+    <ul class="explain">
+      <li><b>초과수익</b>: 같은 날 조건을 만족한 전체 종목 평균보다 얼마나 더 벌었는지 (거래비용 차감 후). 시장이 다 같이 오른 효과는 빠집니다.</li>
+      <li><b>등급</b>: 표본이 충분하고(t값), 기간 앞쪽 절반과 뒤쪽 절반 <b>둘 다</b> 플러스여야 '유력'. 한쪽에서만 통한 신호는 우연일 가능성이 큽니다.</li>
+      <li><b>[비교]</b> 줄은 수급을 안 보고 최근 많이 오른 종목만 산 경우입니다. 수급 신호가 이보다 못하면 수급이 주는 정보가 없다는 뜻입니다.</li>
+    </ul>
+    <div class="tw" style="margin-top:10px"><table id="resTbl"></table></div>
+  </section>
+  <section class="sec">
+    <div class="sh"><h2>언제 파는 게 좋았나</h2><span class="meta">매수 후 보유일별 평균 누적 초과수익 · 선이 꺾이는 지점이 매도 적기</span></div>
+    <div class="panel"><div class="cv" style="height:340px"><canvas id="curve"></canvas></div><div class="chips" id="curveLegend" style="margin-top:8px"></div></div>
+  </section>
+  <section class="sec">
+    <div class="sh"><h2>상위 신호 상세</h2><span class="meta">매수 타이밍 · 매도 규칙 비교 · 요일 · 최근 신호 종목</span></div>
+    <div class="grid g2" id="details"></div>
+  </section>
+  <p class="muted-note">과거 데이터로 계산한 결과이며 앞으로의 수익을 보장하지 않습니다. 기간이 짧거나 한 방향 장세만 포함되면 결과가 크게 달라질 수 있습니다. 투자 판단의 참고 자료로만 사용하세요.</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const fN=(v,d=2)=>v==null||isNaN(v)?"–":Number(v).toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fP=(v,d=2)=>v==null?"–":(v>0?"+":"")+fN(v,d)+"%";
+const cls=v=>v>0?"up":v<0?"dn":"mut";
+const pc=(v,d=2)=>`<span class="${cls(v)}">${fP(v,d)}</span>`;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const gcls=g=>"g-"+g.split(" ")[0];
+function load(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+let chart;
+async function init(){
+  try{await load("data/backtest.js")}catch(e){}
+  if(!window.KD_BT){try{await load("sample/backtest.js");const b=$("#banner");b.hidden=false;b.textContent="샘플(가상) 데이터 결과입니다. python collector/backtest.py 를 실행하면 실제 결과로 바뀝니다."}catch(e){}}
+  const B=window.KD_BT;if(!B){$("#banner").hidden=false;$("#banner").textContent="결과가 없습니다. python collector/backtest.py 를 실행하세요.";return}
+  $("#meta").textContent=`${B.from} ~ ${B.to} · ${B.n_days}거래일 · 생성 ${B.generated}`;
+  $("#cond").textContent=`매일 신호 상위 ${B.topk}종목 · ${B.entry} 매수 · 왕복비용 ${B.cost}% · 시총 ${B.min_cap}억↑ · 거래대금 ${B.min_tv/100}억↑ · 수급 항목: ${B.flows.join(", ")}`;
+  if(!B.flows.includes("외국인")){const b=$("#banner");b.hidden=false;b.textContent=(b.textContent?b.textContent+" ":"")+"외국인·개인 수급이 아직 없어 기관 신호만 비교했습니다. 데이터를 다시 받으면 외국인 신호가 추가됩니다.";}
+  $("#resTbl").innerHTML=`<tr><th class="l">신호</th><th class="c">등급</th><th>최적 보유일</th><th>초과수익<br><span class="sub">최적 보유</span></th><th>수익률<br><span class="sub">비용 차감</span></th><th>5일 보유<br><span class="sub">초과수익</span></th><th>상승 확률</th><th>t값</th><th>앞 절반 / 뒤 절반</th><th>신호 일수</th></tr>`+
+    B.results.map(r=>`<tr><td class="l"><b>${esc(r.name)}</b></td><td class="c"><span class="chip grade ${gcls(r.grade)}">${r.grade}</span></td>
+      <td><b>${r.best_h}일</b></td><td>${pc(r.best.ex)}</td><td>${pc(r.best.ret)}</td><td>${pc(r.h5.ex)}</td><td>${fN(r.best.win,0)}%</td><td>${fN(r.best.t,1)}</td>
+      <td>${pc(r.best.ex_h1)} / ${pc(r.best.ex_h2)}</td><td class="mut">${r.days}</td></tr>`).join("");
+  const pal=["--up","--down","--ok","--warn","--violet","--accent"];
+  const top=B.results.filter(r=>!r.name.startsWith("[비교]")).slice(0,5).concat(B.results.filter(r=>r.name.startsWith("[비교]")));
+  chart=new Chart($("#curve"),{type:"line",data:{labels:Array.from({length:20},(_,i)=>`${i+1}일`),datasets:top.map((r,i)=>({label:r.name,data:r.curve,borderColor:css(pal[i%pal.length]),borderWidth:r.name.startsWith("[비교]")?1.5:2.2,borderDash:r.name.startsWith("[비교]")?[5,4]:[],pointRadius:0}))},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fP(c.raw)}`}}},
+      scales:{x:{grid:{display:false},ticks:{color:css("--muted")}},y:{grid:{color:css("--line")},ticks:{color:css("--muted"),callback:v=>v+"%"},title:{display:true,text:"누적 초과수익",color:css("--muted")}}}}});
+  $("#curveLegend").innerHTML=top.map((r,i)=>`<span class="chip" style="color:var(${pal[i%pal.length]})">${esc(r.name)} · 정점 ${r.best_h}일</span>`).join("");
+  $("#details").innerHTML=B.detail.map(d=>{
+    const ex=Object.entries(d.exits);
+    return `<div class="panel"><h3>${esc(d.name)}</h3>
+      <div class="lbl" style="margin-top:10px">매수 타이밍 (보유 ${d.best_h}일 기준 초과수익)</div>
+      <div class="chips" style="margin-top:4px">${Object.entries(d.delays).map(([k,v])=>`<span class="chip">${k} ${pc(v)}</span>`).join("")}</div>
+      <div class="lbl" style="margin-top:12px">매도 규칙 비교 (최대 20일, 비용 차감 평균 수익률)</div>
+      <div class="tw" style="border:0"><table><tr><th class="l">규칙</th><th>평균 수익</th><th>상승 확률</th><th>평균 보유</th></tr>
+        <tr><td class="l">${d.best_h}일 보유 후 매도</td><td>${pc(d.fixed.ret)}</td><td>${fN(d.fixed.win,0)}%</td><td>${d.fixed.hold}일</td></tr>
+        ${ex.map(([k,v])=>`<tr><td class="l">${esc(k)}</td><td>${pc(v.ret)}</td><td>${fN(v.win,0)}%</td><td>${fN(v.hold,1)}일</td></tr>`).join("")}</table></div>
+      <div class="lbl" style="margin-top:12px">신호 요일별 초과수익</div>
+      <div class="chips" style="margin-top:4px">${Object.entries(d.weekday).map(([k,v])=>`<span class="chip">${k} ${pc(v.ex)} <span class="sub">${v.n}회</span></span>`).join("")}</div>
+      <div class="lbl" style="margin-top:12px">최근 신호 종목</div>
+      <div class="kv" style="margin-top:4px">${d.recent.map(x=>`<span class="code">${x.d}</span><span>${x.names.map(esc).join(", ")}</span>`).join("")}</div></div>`}).join("");
+}
+init();
+})();
+</script>
