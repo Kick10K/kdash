@@ -1,7 +1,7 @@
 data/sample_raw/
 __pycache__/
 .env
-settings.bat
+*.bat
 settings.sh
 .venv/
 work/

@@ -19,9 +19,8 @@ docs/           대시보드 (index.html + data/*.js)
 
 ### Mac에서 실행
 
-Windows의 `call settings.bat` 대신 `source settings.sh`를 사용합니다. 아래 실행 파일들은
-`settings.sh`를 자동으로 읽으므로 수집 전에 직접 `source`를 실행할 필요는 없습니다.
-기존 `settings.bat`의 계정과 옵션은 이번 Mac 변환에서 `settings.sh`로 옮겼습니다.
+계정과 옵션은 `settings.sh`에 저장합니다. 아래 실행 파일들은 이 설정을 자동으로 읽으므로
+수집 전에 직접 `source settings.sh`를 실행할 필요는 없습니다.
 
 ```zsh
 cd /Users/kyungjunkim/Documents/kdash_share
@@ -36,7 +35,7 @@ bash open_dashboard.sh             # 브라우저에서 대시보드 열기
 
 계정·텔레그램·업로드 옵션은 **`settings.sh`**에서 수정하세요. 비밀번호 등의 값은 작은따옴표로
 감싸세요. 새 복사본에 개인 설정 파일이 없으면 `setup_mac.sh`가 `settings.example.sh`를 복사하므로
-계정을 다시 입력해야 합니다. `settings.sh`, `settings.bat`, `.venv`는 Git 업로드 대상에서 제외됩니다.
+계정을 다시 입력해야 합니다. `settings.sh`와 `.venv`는 Git 업로드 대상에서 제외됩니다.
 
 추가 명령:
 
@@ -64,38 +63,37 @@ Mac 자동 실행은 `launchd`를 사용하며 **Mac 시스템 시간대 기준 
 문서 폴더 접근 거부가 실제로 발생하면 Mac의 개인정보 보호 설정에서 실행 주체의 접근 권한을 확인하세요.
 예약 동작 참고: [Apple의 launchd 예약 작업 안내](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html).
 
-### Windows에서 실행
+### 처음 데이터 준비
 
-1. Python 3.10 이상 설치 후 이 폴더에서 `pip install -r requirements.txt`
+1. `bash setup_mac.sh`로 필요한 패키지를 설치합니다.
 2. **KRX 계정 만들기**: data.krx.co.kr 무료 회원가입. pykrx 최신 버전은 KRX 로그인이 필요한 데이터에 `KRX_ID`, `KRX_PW` 환경변수를 씁니다.
-3. 섹터 매핑 만들기: `python collector/build_sectors.py`
+3. 섹터 매핑 만들기: `.venv/bin/python collector/build_sectors.py`
    (네이버 증권 테마를 읽어 `sectors/sectors_auto.csv` 생성. 월 1회 정도 다시 실행)
 4. 과거 데이터 채우기 (추적·섹터 계산에 최소 40거래일 필요):
    ```
-   python collector/run.py --backfill 70
+   bash run_daily.sh --backfill 70
    ```
    종목 수가 많아 하루치에 1~2분 걸립니다.
 5. `docs/index.html`을 더블클릭하면 열립니다. 데이터가 없으면 샘플 화면이 나옵니다.
 
 ## 2. 매일 자동 수집 · 모바일
 
-아래 `.bat` 안내는 Windows용입니다. Mac에서는 위의 `.sh` 또는 `.command` 파일을 사용하세요.
+**설정 파일**: `settings.sh`에 KRX 계정, 텔레그램, 업로드 여부를 적습니다. (GitHub에 올라가지 않음)
 
-**설정 파일**: `settings.bat` 에 KRX 계정, 텔레그램, 업로드 여부를 적습니다. (GitHub 에 올라가지 않음)
-
-**자동 실행 등록**: `register_task.bat` 을 한 번 더블클릭 → 평일 18:40 에 `run_daily.bat` 이 돕니다.
-PC 가 꺼져 있었으면 켜진 직후 실행되고, 최근 5영업일 중 빠진 날짜를 자동으로 채웁니다.
+**자동 실행 등록**: `register_task.command`를 한 번 더블클릭 → Mac 시스템 시간대 기준
+평일 18:40에 `run_daily.sh`가 실행됩니다. 잠자기 중 놓친 실행은 깨어난 뒤 처리합니다.
+전원이 꺼져 있거나 로그아웃한 동안은 실행되지 않으며, 다음 수집 때 최근 5영업일 중 빠진 날짜를 채웁니다.
 (KRX 당일 확정 투자자별 수급은 18시 이후에 나옵니다.)
 
 **모바일 (GitHub Pages)**
 1. Git 설치 (git-scm.com), GitHub 가입, 새 저장소 만들기 (Public, 빈 저장소)
-2. `publish_setup.bat` 실행 → 저장소 주소 붙여넣기 → 처음 한 번 GitHub 로그인 창이 뜸
+2. `publish_setup.command` 실행 → 저장소 주소 붙여넣기 → GitHub 인증이 필요하면 안내에 따라 로그인
 3. GitHub 저장소 Settings → Pages → Branch `main`, 폴더 `/docs` → Save
-4. `settings.bat` 에서 `set PUBLISH=1`
+4. `settings.sh`에서 `export PUBLISH=1`로 바꾸고 저장
 5. 휴대폰에서 `https://<아이디>.github.io/<저장소이름>/` 접속 (홈 화면에 추가 권장)
 
 Public 저장소라 주소를 아는 사람은 볼 수 있습니다. 올라가는 것은 공개 시장 데이터와 계산 결과이며,
-계정·토큰이 든 `settings.bat` 은 올라가지 않습니다.
+계정·토큰이 든 `settings.sh`는 올라가지 않습니다.
 
 ## 3. 계산 기준 (config.py 에서 변경)
 
