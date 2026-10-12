@@ -138,6 +138,7 @@ textarea.out{width:100%;height:120px;font-family:var(--mono);font-size:12px;bord
       <button class="ib" id="prev" aria-label="이전 거래일">◀</button>
       <select id="date" aria-label="분석 기준일"></select>
       <button class="ib" id="next" aria-label="다음 거래일">▶</button>
+      <button class="ib" id="latest" aria-label="최신 데이터 불러오기">최신 데이터</button>
     </div>
     <nav class="tabs" id="tabs">
       <a href="#market">시장·자금</a><a href="#sector">섹터</a><a href="#flow">수급</a><a href="#track">추적</a><a href="backtest.html">전략 검증</a>
@@ -284,7 +285,9 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 /* ---------- data loading ---------- */
-function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+const dataVersion=Date.now();
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src+(src.includes("?")?"&":"?")+"v="+dataVersion;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+$("#latest").onclick=()=>{const url=new URL(location.href);url.hash="";url.searchParams.set("refresh",Date.now());location.replace(url.href)};
 async function init(){
   try{await loadScript("data/dates.js")}catch(e){}
   if(!window.KD_DATES||!window.KD_DATES.length){
@@ -339,7 +342,8 @@ $("#ovClear").onclick=()=>{overrides={};store.set("ov",overrides);renderOv();ren
 function render(){
   const D=st.D;
   $("#gen").textContent=`생성 ${D.generated} · 저장 ${D.n_days_stored}거래일`;
-  history.replaceState(null,"","#d"+D.date.replace(/-/g,""));
+  const dateHash=D.date===st.dates[st.dates.length-1]?"":"#d"+D.date.replace(/-/g,"");
+  history.replaceState(null,"",location.pathname+location.search+dateHash);
   renderMarket();renderSectors();renderSim();renderLists();renderStreaks();renderTrack();renderBT();renderOv();applySorts();
 }
 
